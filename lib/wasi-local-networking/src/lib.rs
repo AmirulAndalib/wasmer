@@ -16,7 +16,7 @@ use wasmer_vnet::{
     io_err_into_net_error, IpCidr, IpRoute, NetworkError, Result, SocketReceive, SocketReceiveFrom,
     SocketStatus, StreamSecurity, TimeType, VirtualConnectedSocket, VirtualConnectionlessSocket,
     VirtualIcmpSocket, VirtualNetworking, VirtualRawSocket, VirtualSocket, VirtualTcpListener,
-    VirtualTcpSocket, VirtualUdpSocket,
+    VirtualTcpSocket, VirtualUdpSocket, VirtualWebSocket,
 };
 
 #[derive(Debug, Default)]

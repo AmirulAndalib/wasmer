@@ -15,7 +15,7 @@ use tokio::sync::OwnedRwLockWriteGuard;
 use wasmer_types::MemorySize;
 use wasmer_vnet::{
     DynVirtualNetworking, TimeType, VirtualConnectedSocket, VirtualIcmpSocket, VirtualRawSocket,
-    VirtualTcpListener, VirtualTcpSocket, VirtualUdpSocket,
+    VirtualTcpListener, VirtualTcpSocket, VirtualUdpSocket, VirtualWebSocket,
 };
 use wasmer_wasi_types::wasi::{
     Addressfamily, Errno, Fdflags, Rights, SockProto, Sockoption, Socktype,
@@ -53,6 +53,7 @@ pub enum InodeSocketKind {
         connect_timeout: Option<Duration>,
         accept_timeout: Option<Duration>,
     },
+    WebSocket(Box<dyn VirtualWebSocket + Sync>),
     Icmp(Box<dyn VirtualIcmpSocket + Sync>),
     Raw(Box<dyn VirtualRawSocket + Sync>),
     TcpListener(Box<dyn VirtualTcpListener + Sync>),
@@ -364,6 +365,7 @@ impl InodeSocket {
             InodeSocketKind::UdpSocket(sock) => {
                 sock.close().map_err(net_error_into_wasi_err)?;
             }
+            InodeSocketKind::WebSocket(_) => {}
             InodeSocketKind::Raw(_) => {}
             InodeSocketKind::PreSocket { .. } => return Err(Errno::Notconn),
             InodeSocketKind::Closed => return Err(Errno::Notconn),
@@ -386,6 +388,7 @@ impl InodeSocket {
                     .await
                     .map_err(net_error_into_wasi_err)?;
             }
+            InodeSocketKind::WebSocket(_) => {}
             InodeSocketKind::Raw(sock) => {
                 VirtualRawSocket::flush(sock.deref_mut())
                     .await
@@ -455,6 +458,7 @@ impl InodeSocket {
         let inner = self.inner.read().await;
         Ok(match &inner.kind {
             InodeSocketKind::PreSocket { .. } => WasiSocketStatus::Opening,
+            InodeSocketKind::WebSocket(_) => WasiSocketStatus::Opened,
             InodeSocketKind::TcpListener(_) => WasiSocketStatus::Opened,
             InodeSocketKind::TcpStream(_) => WasiSocketStatus::Opened,
             InodeSocketKind::UdpSocket(_) => WasiSocketStatus::Opened,
@@ -938,6 +942,11 @@ impl InodeSocket {
         let mut inner = self.inner.write().await;
 
         let ret = match &mut inner.kind {
+            InodeSocketKind::WebSocket(sock) => sock
+                .send(Bytes::from(buf))
+                .await
+                .map(|_| buf_len)
+                .map_err(net_error_into_wasi_err),
             InodeSocketKind::Raw(sock) => sock
                 .send(Bytes::from(buf))
                 .await
@@ -1000,6 +1009,10 @@ impl InodeSocket {
                 }
             }
             let data = match &mut inner.kind {
+                InodeSocketKind::WebSocket(sock) => {
+                    let read = sock.recv().await.map_err(net_error_into_wasi_err)?;
+                    read.data
+                }
                 InodeSocketKind::Raw(sock) => {
                     let read = sock.recv().await.map_err(net_error_into_wasi_err)?;
                     read.data
@@ -1079,7 +1092,8 @@ impl InodeSocket {
             match &mut guard.kind {
                 InodeSocketKind::TcpStream(..)
                 | InodeSocketKind::UdpSocket(..)
-                | InodeSocketKind::Raw(..) => true,
+                | InodeSocketKind::Raw(..)
+                | InodeSocketKind::WebSocket(..) => true,
                 _ => false,
             }
         } else {
@@ -1098,6 +1112,7 @@ impl InodeSocketInner {
             InodeSocketKind::TcpStream(socket) => socket.poll_read_ready(cx),
             InodeSocketKind::UdpSocket(socket) => socket.poll_read_ready(cx),
             InodeSocketKind::Raw(socket) => socket.poll_read_ready(cx),
+            InodeSocketKind::WebSocket(socket) => socket.poll_read_ready(cx),
             InodeSocketKind::Icmp(socket) => socket.poll_read_ready(cx),
             InodeSocketKind::PreSocket { .. } => {
                 std::task::Poll::Ready(Err(wasmer_vnet::NetworkError::IOError))
@@ -1117,6 +1132,7 @@ impl InodeSocketInner {
             InodeSocketKind::TcpStream(socket) => socket.poll_write_ready(cx),
             InodeSocketKind::UdpSocket(socket) => socket.poll_write_ready(cx),
             InodeSocketKind::Raw(socket) => socket.poll_write_ready(cx),
+            InodeSocketKind::WebSocket(socket) => socket.poll_write_ready(cx),
             InodeSocketKind::Icmp(socket) => socket.poll_write_ready(cx),
             InodeSocketKind::PreSocket { .. } => {
                 std::task::Poll::Ready(Err(wasmer_vnet::NetworkError::IOError))

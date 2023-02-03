@@ -142,6 +142,7 @@ impl std::fmt::Debug for InodeValFilePollGuard {
                     }
                     InodeSocketKind::UdpSocket(..) => write!(f, "guard-udp-socket"),
                     InodeSocketKind::Raw(..) => write!(f, "guard-raw-socket"),
+                    InodeSocketKind::WebSocket(..) => write!(f, "guard-web-socket"),
                     _ => write!(f, "guard-socket"),
                 },
                 _ => write!(f, "guard-socket (locked)"),

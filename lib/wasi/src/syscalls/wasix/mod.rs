@@ -78,6 +78,7 @@ mod thread_sleep;
 mod thread_spawn;
 mod tty_get;
 mod tty_set;
+mod ws_connect;
 
 pub use bus_call::*;
 pub use bus_close::*;
@@ -159,3 +160,4 @@ pub use thread_sleep::*;
 pub use thread_spawn::*;
 pub use tty_get::*;
 pub use tty_set::*;
+pub use ws_connect::*;

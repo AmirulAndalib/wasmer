@@ -100,7 +100,7 @@ pub use crate::{
     },
     runtime::{
         task_manager::{VirtualTaskManager, VirtualTaskManagerExt},
-        PluggableRuntimeImplementation, SpawnedMemory, WasiRuntimeImplementation,
+        PluggableRuntimeImplementation, SpawnedMemory, WasiRuntimeImplementation, WebSocketAbi,
     },
     wapm::parse_static_webc,
 };
@@ -410,6 +410,7 @@ fn wasix_exports_32(mut store: &mut impl AsStoreMut, env: &FunctionEnv<WasiEnv>)
         "call_reply" => Function::new_typed_with_env(&mut store, env, call_reply::<Memory32>),
         "call_fault" => Function::new_typed_with_env(&mut store, env, call_fault),
         "call_close" => Function::new_typed_with_env(&mut store, env, call_close),
+        "ws_connect" => Function::new_typed_with_env(&mut store, env, ws_connect::<Memory32>),
         "port_bridge" => Function::new_typed_with_env(&mut store, env, port_bridge::<Memory32>),
         "port_unbridge" => Function::new_typed_with_env(&mut store, env, port_unbridge),
         "port_dhcp_acquire" => Function::new_typed_with_env(&mut store, env, port_dhcp_acquire),
@@ -542,6 +543,7 @@ fn wasix_exports_64(mut store: &mut impl AsStoreMut, env: &FunctionEnv<WasiEnv>)
         "call_reply" => Function::new_typed_with_env(&mut store, env, call_reply::<Memory64>),
         "call_fault" => Function::new_typed_with_env(&mut store, env, call_fault),
         "call_close" => Function::new_typed_with_env(&mut store, env, call_close),
+        "ws_connect" => Function::new_typed_with_env(&mut store, env, ws_connect::<Memory64>),
         "port_bridge" => Function::new_typed_with_env(&mut store, env, port_bridge::<Memory64>),
         "port_unbridge" => Function::new_typed_with_env(&mut store, env, port_unbridge),
         "port_dhcp_acquire" => Function::new_typed_with_env(&mut store, env, port_dhcp_acquire),
